@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# ไฟล์ log และข้อมูล
+*.log
+data/
+
+# ไฟล์ชั่วคราวและการคอมไพล์
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.exe
+*.test
+*.prof
+
+# สภาพแวดล้อมและการตั้งค่าเฉพาะที่
+.env
+.venv
+env/
+venv/
+ENV/
+.vscode/
+.idea/
+
+# เอกสารและไฟล์ที่ไม่เกี่ยวข้องกับการรัน
+docs/
+*.md
+LICENSE

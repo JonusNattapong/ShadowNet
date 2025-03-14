@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  shadownet:
+    build: .
+    container_name: shadownet
+    restart: unless-stopped
+    ports:
+      - "2222:2222"   # SSH
+      - "8080:8080"   # HTTP
+      - "2121:2121"   # FTP
+      - "3389:3389"   # RDP
+      - "445:445"     # SMB
+      - "502:502"     # Modbus
+      - "1883:1883"   # MQTT
+      - "8000:8000"   # API
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - SHADOWNET_ENV=production
+    depends_on:
+      - postgres
+      - elasticsearch
+    privileged: true  # จำเป็นสำหรับการใช้งาน iptables
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: shadownet-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-yourpassword}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_DB=${DB_NAME:-shadownet}
+
+  elasticsearch:
+    image: elasticsearch:7.17.0
+    container_name: shadownet-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: kibana:7.17.0
+    container_name: shadownet-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: shadownet-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    depends_on:
+      - elasticsearch
+      - postgres
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+  grafana_data:
