@@ -1,0 +1,18 @@
+honeypots:
+  ssh_port: 2222
+  http_port: 8080
+  ftp_port: 2121
+  rdp_port: 3389
+  smb_port: 445
+  modbus_port: 502
+  mqtt_port: 1883
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "yourpassword"
+  dbname: "shadownet"
+ai:
+  model_path: "ai/attack_classifier.pkl"
+countermeasures:
+  enable_exploits: false  # Set to true for offensive actions
