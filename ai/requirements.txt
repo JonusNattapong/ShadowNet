@@ -1,0 +1,19 @@
+# AI และ Machine Learning
+tensorflow>=2.9.0
+scikit-learn>=1.0.2
+pandas>=1.4.2
+numpy>=1.22.3
+matplotlib>=3.5.1
+seaborn>=0.11.2
+
+# Reinforcement Learning
+gym>=0.21.0
+stable-baselines3>=1.5.0
+
+# การทำงานกับข้อมูล
+elasticsearch>=8.2.0
+psycopg2-binary>=2.9.3
+
+# Utilities
+tqdm>=4.64.0
+joblib>=1.1.0
