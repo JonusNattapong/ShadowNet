@@ -1,36 +1,55 @@
 package honeypot
 
 import (
-	"fmt"
+	"context"
 	"net"
 	"shadownet/db"
 	"shadownet/utils"
 )
 
-// SMBServer mocks SMB protocol
+// SMBServer implements a fake SMB server
 type SMBServer struct {
-    Port int
+    BaseHoneypot
 }
 
-// StartSMPServer starts a fake SMB listener
-func StartSMPServer(port int) {
-    listener, _ := net.Listen("tcp", fmt.Sprintf(":%d", port))
-    utils.Log.Infof("SMB honeypot running on port %d", port)
-
-    for {
-        conn, _ := listener.Accept()
-        go handleSMB(conn)
+// StartSMBServer starts a fake SMB listener with proper error handling
+func StartSMBServer(port int) error {
+    smb := &SMBServer{
+        BaseHoneypot: BaseHoneypot{
+            Name: "SMB",
+            Port: port,
+        },
     }
+
+    if err := smb.Initialize(port); err != nil {
+        return err
+    }
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    return smb.Start(ctx, smb.handleSMB)
 }
 
-func handleSMB(conn net.Conn) {
+func (s *SMBServer) handleSMB(conn net.Conn) {
     defer conn.Close()
+    
     buf := make([]byte, 1024)
-    conn.Read(buf)
+    n, err := conn.Read(buf)
+    if err != nil {
+        utils.Log.Errorf("SMB read error: %v", err)
+        return
+    }
 
-    ip := conn.RemoteAddr().String()
-    utils.Log.Warningf("SMB connection attempt from %s", ip)
-    db.LogAttack(ip, "N/A", "smb")
+    // Log the connection attempt
+    hc := s.LogConnection(conn, buf[:n])
+    
+    // Log to database
+    db.LogAttack(hc.IP, "N/A", "smb")
 
-    conn.Write([]byte("\xff\x53\x4d\x42")) // SMB protocol signature
+    // Send SMB protocol signature (SMB\xFF) as response
+    smbSignature := []byte{0x00, 0x53, 0x4D, 0x42, 0xFF}
+    if _, err := conn.Write(smbSignature); err != nil {
+        utils.Log.Errorf("SMB write error: %v", err)
+    }
 }

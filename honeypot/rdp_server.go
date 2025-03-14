@@ -1,36 +1,55 @@
 package honeypot
 
 import (
-	"fmt"
+	"context"
 	"net"
 	"shadownet/db"
 	"shadownet/utils"
 )
 
-// RDPServer mocks RDP handshake
+// RDPServer implements a fake RDP server
 type RDPServer struct {
-    Port int
+    BaseHoneypot
 }
 
-// StartRDPServer starts a fake RDP listener
-func StartRDPServer(port int) {
-    listener, _ := net.Listen("tcp", fmt.Sprintf(":%d", port))
-    utils.Log.Infof("RDP honeypot running on port %d", port)
-
-    for {
-        conn, _ := listener.Accept()
-        go handleRDP(conn)
+// StartRDPServer starts a fake RDP listener with proper error handling
+func StartRDPServer(port int) error {
+    rdp := &RDPServer{
+        BaseHoneypot: BaseHoneypot{
+            Name: "RDP",
+            Port: port,
+        },
     }
+
+    if err := rdp.Initialize(port); err != nil {
+        return err
+    }
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    return rdp.Start(ctx, rdp.handleRDP)
 }
 
-func handleRDP(conn net.Conn) {
+func (s *RDPServer) handleRDP(conn net.Conn) {
     defer conn.Close()
+    
     buf := make([]byte, 1024)
-    conn.Read(buf)
+    n, err := conn.Read(buf)
+    if err != nil {
+        utils.Log.Errorf("RDP read error: %v", err)
+        return
+    }
 
-    ip := conn.RemoteAddr().String()
-    utils.Log.Warningf("RDP connection attempt from %s", ip)
-    db.LogAttack(ip, "N/A", "rdp")
+    // Log the connection attempt
+    hc := s.LogConnection(conn, buf[:n])
+    
+    // Log to database
+    db.LogAttack(hc.IP, "N/A", "rdp")
 
-    conn.Write([]byte{0x03, 0x00, 0x00, 0x13}) // Mock RDP protocol handshake
+    // Send RDP protocol handshake
+    rdpHandshake := []byte{0x03, 0x00, 0x00, 0x13} // Standard RDP protocol header
+    if _, err := conn.Write(rdpHandshake); err != nil {
+        utils.Log.Errorf("RDP write error: %v", err)
+    }
 }
