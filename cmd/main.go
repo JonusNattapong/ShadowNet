@@ -142,7 +142,17 @@ func startServices(ctx context.Context, cfg *config.Config, services map[string]
         services["ssh"] = &ServiceStatus{Name: "SSH", Status: true}
         mu.Unlock()
         
-        if err := honeypot.StartSSHServer(cfg.Honeypots.SSHPort); err != nil {
+        sshServer, err := honeypot.NewSSHServer(db.GetDB(), cfg.Honeypots.SSHPort)
+        if err != nil {
+            utils.Log.Errorf("Failed to create SSH honeypot: %v", err)
+            mu.Lock()
+            services["ssh"].Status = false
+            services["ssh"].Errors = append(services["ssh"].Errors, err.Error())
+            mu.Unlock()
+            return
+        }
+
+        if err := sshServer.Start(); err != nil {
             utils.Log.Errorf("SSH honeypot error: %v", err)
             mu.Lock()
             services["ssh"].Status = false
