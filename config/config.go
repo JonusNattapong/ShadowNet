@@ -26,6 +26,7 @@ type Config struct {
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
 		DBName   string `yaml:"dbname"`
+		TestDB   string `yaml:"test_db"`
 	} `yaml:"database"`
 
 	AI struct {
