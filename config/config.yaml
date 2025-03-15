@@ -12,6 +12,7 @@ database:
   user: "postgres"
   password: "yourpassword"
   dbname: "shadownet"
+  test_db: "file::memory:?cache=shared"
 ai:
   model_path: "ai/attack_classifier.pkl"
 countermeasures:
