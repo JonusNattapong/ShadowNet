@@ -2,6 +2,7 @@ package honeypot
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"shadownet/utils"
@@ -10,19 +11,30 @@ import (
 
 // HoneypotConnection represents a connection to a honeypot
 type HoneypotConnection struct {
-	IP        string
-	Port      int
-	Service   string
-	Timestamp time.Time
-	Data      []byte
+    IP        string
+    Port      int
+    Service   string
+    Timestamp time.Time
+    Data      []byte
 }
 
 // BaseHoneypot provides common functionality for all honeypots
 type BaseHoneypot struct {
-	Name     string
-	Port     int
-	Listener net.Listener
-	Timeout  time.Duration
+    Name     string
+    Port     int
+    Listener net.Listener
+    Timeout  time.Duration
+    DB       *sql.DB
+}
+
+// NewBaseHoneypot creates a new base honeypot instance
+func NewBaseHoneypot(name string, port int, db *sql.DB) *BaseHoneypot {
+    return &BaseHoneypot{
+        Name:    name,
+        Port:    port,
+        DB:      db,
+        Timeout: 30 * time.Second,
+    }
 }
 
 // Initialize sets up the base honeypot
