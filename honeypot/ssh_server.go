@@ -5,10 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"net"
-	"shadownet/db"
+
 	"shadownet/utils"
 
 	"golang.org/x/crypto/ssh"
@@ -20,13 +21,10 @@ type SSHServer struct {
     config *ssh.ServerConfig
 }
 
-// StartSSHServer starts a fake SSH server with proper error handling
-func StartSSHServer(port int) error {
+// NewSSHServer creates a new SSH honeypot
+func NewSSHServer(db *sql.DB, port int) (*SSHServer, error) {
     sshServer := &SSHServer{
-        BaseHoneypot: BaseHoneypot{
-            Name: "SSH",
-            Port: port,
-        },
+        BaseHoneypot: *NewBaseHoneypot("SSH", port, db),
     }
 
     // Initialize SSH server config
@@ -34,8 +32,7 @@ func StartSSHServer(port int) error {
         PasswordCallback: func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
             ip := c.RemoteAddr().String()
             user := c.User()
-            utils.Log.Warningf("SSH login attempt from %s: user=%s, pass=%s", ip, user, string(pass))
-            db.LogAttack(ip, fmt.Sprintf("user:%s,pass:%s", user, string(pass)), "ssh")
+            utils.Log.Warningf("Rejected SSH login attempt from %s - user:%s", ip, user)
             return nil, fmt.Errorf("access denied")
         },
     }
@@ -43,7 +40,7 @@ func StartSSHServer(port int) error {
     // Generate the RSA key
     privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
     if err != nil {
-        return fmt.Errorf("failed to generate private key: %v", err)
+        return nil, fmt.Errorf("failed to generate private key: %v", err)
     }
 
     // Generate PEM block for logging purposes
@@ -55,21 +52,25 @@ func StartSSHServer(port int) error {
 
     signer, err := ssh.NewSignerFromKey(privateKey)
     if err != nil {
-        return fmt.Errorf("failed to create signer: %v", err)
+        return nil, fmt.Errorf("failed to create signer: %v", err)
     }
 
     config.AddHostKey(signer)
     sshServer.config = config
 
-    // Initialize the base honeypot
-    if err := sshServer.Initialize(port); err != nil {
+    return sshServer, nil
+}
+
+// Start starts the SSH honeypot server
+func (s *SSHServer) Start() error {
+    if err := s.Initialize(s.Port); err != nil {
         return err
     }
 
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    return sshServer.Start(ctx, sshServer.handleSSH)
+    return s.BaseHoneypot.Start(ctx, s.handleSSH)
 }
 
 func (s *SSHServer) handleSSH(conn net.Conn) {
@@ -84,8 +85,10 @@ func (s *SSHServer) handleSSH(conn net.Conn) {
     }
     defer sshConn.Close()
 
-    // Log the connection attempt with client version
-    s.LogConnection(conn, []byte(fmt.Sprintf("Client Version: %s", string(sshConn.ClientVersion()))))
+    // Just log the connection attempt
+    remoteAddr := conn.RemoteAddr().String()
+    clientVersion := string(sshConn.ClientVersion())
+    utils.Log.Warningf("SSH connection attempt from %s with client version %s", remoteAddr, clientVersion)
 
     // Even though we'll never reach here (as auth always fails), 
     // proper handling of channels and requests
