@@ -28,3 +28,13 @@ func InitLogger() {
     // Add file and line number to log entries
     Log.SetReportCaller(true)
 }
+
+// InitTestLogger initializes a logger for testing
+func InitTestLogger() {
+    Log = logrus.New()
+    Log.SetOutput(os.Stdout)
+    Log.SetFormatter(&logrus.TextFormatter{
+        DisableTimestamp: true,
+    })
+    Log.SetLevel(logrus.FatalLevel) // Only show fatal errors during tests
+}
